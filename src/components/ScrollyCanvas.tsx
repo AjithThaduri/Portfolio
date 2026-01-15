@@ -47,27 +47,53 @@ export default function ScrollyCanvas() {
     const loadImages = async () => {
       const imagePromises: Promise<HTMLImageElement>[] = [];
       let loadedCount = 0;
+      let hasTimedOut = false;
+
+      const timeout = setTimeout(() => {
+        hasTimedOut = true;
+        console.warn("Image loading timeout - proceeding without full animation");
+        setIsLoading(false);
+      }, 3000);
 
       for (let i = 0; i < TOTAL_FRAMES; i++) {
         const promise = new Promise<HTMLImageElement>((resolve, reject) => {
           const img = new Image();
+          const imgTimeout = setTimeout(() => {
+            reject(new Error(`Timeout loading frame ${i}`));
+          }, 2000);
+
           img.onload = () => {
-            loadedCount++;
-            setLoadProgress((loadedCount / TOTAL_FRAMES) * 100);
+            clearTimeout(imgTimeout);
+            if (!hasTimedOut) {
+              loadedCount++;
+              setLoadProgress((loadedCount / TOTAL_FRAMES) * 100);
+            }
             resolve(img);
           };
-          img.onerror = reject;
+          img.onerror = () => {
+            clearTimeout(imgTimeout);
+            reject(new Error(`Failed to load frame ${i}`));
+          };
           img.src = getFramePath(i);
         });
         imagePromises.push(promise);
       }
 
       try {
-        const loadedImages = await Promise.all(imagePromises);
-        setImages(loadedImages);
+        const loadedImages = await Promise.allSettled(imagePromises);
+        const successfulImages = loadedImages
+          .filter((result): result is PromiseFulfilledResult<HTMLImageElement> => result.status === 'fulfilled')
+          .map(result => result.value);
+
+        clearTimeout(timeout);
+        if (successfulImages.length > 0) {
+          setImages(successfulImages);
+        }
         setIsLoading(false);
       } catch (error) {
         console.error("Error loading images:", error);
+        clearTimeout(timeout);
+        setIsLoading(false);
       }
     };
 
