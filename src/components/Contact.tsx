@@ -3,12 +3,6 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
 import { Mail, Send, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface FormData {
   name: string;
@@ -46,27 +40,26 @@ export default function Contact() {
     setErrorMessage("");
 
     try {
-      const { error } = await supabase.from("contact_submissions").insert([
-        {
-          name: formData.name,
-          email: formData.email,
-          subject: formData.subject,
-          message: formData.message,
-        },
-      ]);
+      const mailtoLink = `mailto:ajith@ajiththaduri.dev?subject=${encodeURIComponent(
+        formData.subject || "Contact from Portfolio"
+      )}&body=${encodeURIComponent(
+        `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`
+      )}`;
 
-      if (error) throw error;
-
-      setStatus("success");
-      setFormData({ name: "", email: "", subject: "", message: "" });
+      window.location.href = mailtoLink;
 
       setTimeout(() => {
-        setStatus("idle");
-      }, 5000);
+        setStatus("success");
+        setFormData({ name: "", email: "", subject: "", message: "" });
+
+        setTimeout(() => {
+          setStatus("idle");
+        }, 5000);
+      }, 500);
     } catch (error) {
       console.error("Error submitting form:", error);
       setStatus("error");
-      setErrorMessage("Failed to send message. Please try again.");
+      setErrorMessage("Failed to open email client. Please email directly.");
 
       setTimeout(() => {
         setStatus("idle");
